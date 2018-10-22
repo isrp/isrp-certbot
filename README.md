@@ -74,6 +74,46 @@ In your docker-compose file, add a service for `isrp/isrp-certbot`, and configur
     restart: on-failure
 ```
 
+### Setup virtual hosts
+
+In a simple configuration with a single web server hosting the domain and all its sub domain (very useful for
+a wordpress multisite setup), there's not much to do other than specify the corrct `VIRTUAL_HOST` environment
+variable as specified in `jwilder/nginx-proxy` documentation.
+
+#### Simple configuraiton with wild card host
+
+Setup a `DEFAULT_HOST` configuration for Nginx proxy to point to you single host, then set its `VIRTUAL_HOST`
+configuration to the same domain as in `isrp-certbot`'s `CERT_DOMAIN` configuration.
+
+```
+  web:
+    image: nginx
+    environment:
+      VIRTUAL_HOST: roleplay.org.il,www.roleplay.org.il
+```
+
+The Nginx proxy will automatically associate the certificate created by `isrp/isrp-certbot` from its `CERT_DOMAIN`
+configuration with the `VIRTUAL_HOST` configuration.
+
+#### Multiple virtual hosts
+
+If you need multiple web services to use the same wildcard certificate, use the Nginx proxy `CERT_NAME` configuration
+to attach the wildcard certificate to additional services:
+
+```
+  api:
+    image: my-api
+    environment:
+      VIRTUAL_HOST: api.roleplay.org.il
+      CERT_NAME: roleplay.org.il
+```
+
+#### Multiple wildcard certificates
+
+To deploy multiple certificates, you can run multiple copies of the `isrp/isrp-certbot` container in your composition.
+In the future we may support registering for multiple domains in the same container - let us know in the issues if its
+important to you.
+
 ## Development and local testing
 
 For development:
@@ -91,4 +131,3 @@ To reset the configuration:
 docker-compose -f test-compose.yaml down
 docker volume rm isrp-certbot_test-certs
 ```
-
