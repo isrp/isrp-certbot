@@ -1,0 +1,36 @@
+version: '3'
+
+services:
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ENABLE_IPV6: "true"
+      DEFAULT_HOST: roleplay.org.il
+    labels:
+      - com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - test-certs:/etc/nginx/certs:ro
+    restart: always
+
+  web:
+    image: nginx
+    environment:
+      VIRTUAL_HOST: roleplay.org.il,www.roleplay.org.il
+
+  isrp-certbot:
+    build: .
+    environment:
+      CERT_STAGING: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./isrp-start.sh:/app/isrp-start
+      - ./digitalocean.ini:/app/digitalocean.ini
+      - test-certs:/certificates
+    restart: always
+
+volumes:
+  test-certs:
