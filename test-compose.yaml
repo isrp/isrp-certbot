@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   nginx-proxy:
@@ -16,6 +16,7 @@ services:
       - test-certs:/etc/nginx/certs:ro
     restart: always
 
+
   web:
     image: nginx
     environment:
@@ -24,13 +25,15 @@ services:
   isrp-certbot:
     build: .
     environment:
-      CERT_STAGING: "true"
+      CERT_EMAIL: web@roelplay.org.il
+      CERT_DOMAIN: roleplay.org.il
+#      CERT_STAGING: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./isrp-start.sh:/app/isrp-start
       - ./digitalocean.ini:/app/digitalocean.ini
       - test-certs:/certificates
-    restart: always
+    restart: on-failure
 
 volumes:
   test-certs:

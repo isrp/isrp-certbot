@@ -1,6 +1,5 @@
 #!/bin/bash -ex
 
-EMAIL=${CERT_EMAIL:-web@roleplay.org.il}
 if [ -n "$CERT_STAGING" ]; then
 	SERVER="--server https://acme-staging-v02.api.letsencrypt.org/directory"
 else
@@ -17,9 +16,9 @@ function registerWildcard() {
 	local domain="$1"
 	$CERTBOT \
 		certonly $SERVER \
-		--email $EMAIL -n --agree-tos \
+		--email $CERT_EMAIL -n --agree-tos \
 		--dns-digitalocean --dns-digitalocean-credentials /app/digitalocean.ini \
-		--cert-name "$domain" -d "$domain" -d '*.'"$domain"
+		--cert-name "$domain" -d \*."$domain" -d "$domain" || return 1
 	cp -f $LETSENCRYPT_VOLUME/live/$domain/fullchain.pem $NGINX_PROXY_VOLUME/$domain.crt
 	cp -f $LETSENCRYPT_VOLUME/live/$domain/privkey.pem $NGINX_PROXY_VOLUME/$domain.key
 }
@@ -34,12 +33,32 @@ function get_docker_proxy() {
 
 function docker_kill() {
 	local id="$1"
-	$DOCKER kill -s INT "$id"
+	$DOCKER kill -s HUP "$id"
 }
+
+if [ -z "$CERT_EMAIL" -o -z "$CERT_DOMAIN" ]; then
+	cat >&2 <<EOF
+Usage:
+
+Set the following environment variables:
+
+* CERT_EMAIL: The email address to register the certificate for
+* CERT_DOMAIN: The domain to request a wild card certificate for
+
+You may optionally set an of the following environment variables:
+
+* CERT_STAGING: set to any value to use the Lets Encrypt staging server instead of production. Useful for testing
+EOF
+	exit 0
+fi
 
 lock=$(mktemp)
 
-registerWildcard roleplay.org.il
+for try in {1..5}; do
+	registerWildcard roleplay.org.il && break
+	echo Waiting 30 seconds before retrying
+	sleep 30
+done
 
 docker_kill $(get_docker_proxy)
 
@@ -49,3 +68,5 @@ while [ -f "$lock" ]; do
 	sleep $(( 86400 * $RENEW_CHECK_DAYS ))
 	renew
 done
+
+exit 0
